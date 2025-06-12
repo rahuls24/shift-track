@@ -12,23 +12,30 @@ import {
 import { auth } from '../../../firebase';
 import Link from 'next/link';
 import { doc, deleteDoc } from 'firebase/firestore';
+import type { User } from 'firebase/auth';
+import type { Timestamp as FirestoreTimestamp } from 'firebase/firestore';
+
+const WORK_DURATION_MS = 3 * 60 * 60 * 1000 + 40 * 60 * 1000; // 3h 40m
 
 function formatDuration(ms: number) {
-	const h = Math.floor(ms / 3600000);
-	const m = Math.floor((ms % 3600000) / 60000);
-	return `${h ? h + 'h ' : ''}${m}m`;
+	const mins = Math.round(ms / 60000);
+	const hrs = (ms / 3600000).toFixed(2);
+	return `${mins} min (${hrs}h)`;
 }
 
+type Entry = {
+	id: string;
+	swapIn?: FirestoreTimestamp;
+	swapOut?: FirestoreTimestamp;
+};
+
 export default function History() {
-	const [entries, setEntries] = useState<any[]>([]);
+	const [entries, setEntries] = useState<Entry[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [period, setPeriod] = useState<'week' | 'month' | 'year'>('week');
 	const [total, setTotal] = useState(0);
-	const [user, setUser] = useState<any>(null);
+	const [user, setUser] = useState<User | null>(null);
 	const [selected, setSelected] = useState<string[]>([]);
-	const [busTimes, setBusTimes] = useState<{ id: string; time: string }[]>(
-		[],
-	);
 
 	useEffect(() => {
 		const unsub = auth.onAuthStateChanged(u => setUser(u));
@@ -51,7 +58,9 @@ export default function History() {
 				orderBy('swapIn', 'desc'),
 			);
 			const snap = await getDocs(q);
-			const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+			const data = snap.docs.map(
+				doc => ({ id: doc.id, ...doc.data() } as Entry),
+			);
 			setEntries(data);
 			setLoading(false);
 			let sum = 0;
@@ -66,24 +75,6 @@ export default function History() {
 		})();
 	}, [user, period]);
 
-	useEffect(() => {
-		if (!user) return;
-		const fetchBusTimes = async () => {
-			const colRef = collection(db, 'users', user.uid, 'busTimes');
-			const snap = await getDocs(colRef);
-			if (snap.empty) {
-				setBusTimes([]);
-				return;
-			}
-			const data = snap.docs.map(d => ({
-				id: d.id,
-				...(d.data() as { time: string }),
-			}));
-			setBusTimes(data.sort((a, b) => a.time.localeCompare(b.time)));
-		};
-		fetchBusTimes();
-	}, [user]);
-
 	const handleDelete = async (ids: string | string[]) => {
 		const idList = Array.isArray(ids) ? ids : [ids];
 		setEntries(prev => prev.filter(e => !idList.includes(e.id)));
@@ -92,29 +83,29 @@ export default function History() {
 			await Promise.all(
 				idList.map(id => deleteDoc(doc(db, 'entries', id))),
 			);
-		} catch (err) {
+		} catch {
 			// Optionally show error toast
 		}
 	};
 
 	return (
-		<div className='min-h-screen bg-gradient-to-br from-blue-50 to-green-100 p-4 flex flex-col items-center'>
-			<div className='w-full max-w-2xl bg-white/90 shadow-xl rounded-2xl px-8 py-10 mt-8 border border-gray-100'>
-				<div className='flex justify-between items-center mb-6'>
-					<h2 className='text-2xl font-bold text-gray-800'>
+		<div className='min-h-screen bg-gradient-to-br from-blue-50 to-green-100 p-2 sm:p-4 flex flex-col items-center'>
+			<div className='w-full max-w-2xl bg-white/90 shadow-xl rounded-2xl px-2 py-6 sm:px-8 sm:py-10 mt-4 sm:mt-8 border border-gray-100'>
+				<div className='flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-2 sm:gap-0'>
+					<h2 className='text-xl sm:text-2xl font-bold text-gray-800 text-center sm:text-left'>
 						Work History
 					</h2>
 					<Link
 						href='/dashboard'
-						className='text-blue-600 hover:underline'
+						className='text-blue-600 hover:underline text-center sm:text-right text-base sm:text-base'
 					>
 						Back to Dashboard
 					</Link>
 				</div>
-				<div className='flex gap-2 mb-4'>
+				<div className='flex flex-wrap gap-2 mb-4 justify-center sm:justify-start'>
 					<button
 						onClick={() => setPeriod('week')}
-						className={`px-3 py-1 rounded-full text-sm font-medium ${
+						className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
 							period === 'week'
 								? 'bg-blue-500 text-white'
 								: 'bg-gray-100 text-gray-700'
@@ -124,7 +115,7 @@ export default function History() {
 					</button>
 					<button
 						onClick={() => setPeriod('month')}
-						className={`px-3 py-1 rounded-full text-sm font-medium ${
+						className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
 							period === 'month'
 								? 'bg-blue-500 text-white'
 								: 'bg-gray-100 text-gray-700'
@@ -134,7 +125,7 @@ export default function History() {
 					</button>
 					<button
 						onClick={() => setPeriod('year')}
-						className={`px-3 py-1 rounded-full text-sm font-medium ${
+						className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
 							period === 'year'
 								? 'bg-blue-500 text-white'
 								: 'bg-gray-100 text-gray-700'
@@ -143,11 +134,11 @@ export default function History() {
 						This Year
 					</button>
 				</div>
-				<div className='overflow-x-auto'>
-					<table className='min-w-full border-separate border-spacing-y-0 shadow-lg rounded-xl overflow-hidden bg-white'>
+				<div className='w-full overflow-x-auto rounded-lg border border-gray-200 bg-white mb-4'>
+					<table className='min-w-[600px] w-full text-xs sm:text-sm border-separate border-spacing-y-0'>
 						<thead>
 							<tr className='bg-gray-50 text-gray-700 text-xs uppercase tracking-wider'>
-								<th className='px-4 py-3 text-left rounded-tl-lg'>
+								<th className='px-2 py-2 sm:px-4 sm:py-3 text-left rounded-tl-lg'>
 									<input
 										type='checkbox'
 										checked={
@@ -166,15 +157,22 @@ export default function History() {
 										aria-label='Select all rows'
 									/>
 								</th>
-								<th className='px-4 py-3 text-left'>Date</th>
-								<th className='px-4 py-3 text-left'>Swap In</th>
-								<th className='px-4 py-3 text-left'>
+								<th className='px-2 py-2 sm:px-4 sm:py-3 text-left'>
+									Date
+								</th>
+								<th className='px-2 py-2 sm:px-4 sm:py-3 text-left'>
+									Swap In
+								</th>
+								<th className='px-2 py-2 sm:px-4 sm:py-3 text-left'>
 									Swap Out
 								</th>
-								<th className='px-4 py-3 text-left'>
+								<th className='px-2 py-2 sm:px-4 sm:py-3 text-left'>
 									Duration
 								</th>
-								<th className='px-4 py-3 text-right rounded-tr-lg'>
+								<th className='px-2 py-2 sm:px-4 sm:py-3 text-left'>
+									Status
+								</th>
+								<th className='px-2 py-2 sm:px-4 sm:py-3 text-right rounded-tr-lg'>
 									Action
 								</th>
 							</tr>
@@ -183,7 +181,7 @@ export default function History() {
 							{loading ? (
 								<tr>
 									<td
-										colSpan={6}
+										colSpan={7}
 										className='text-center py-8'
 									>
 										Loading...
@@ -192,113 +190,137 @@ export default function History() {
 							) : entries.length === 0 ? (
 								<tr>
 									<td
-										colSpan={6}
+										colSpan={7}
 										className='text-center py-8 text-gray-400'
 									>
 										No entries found.
 									</td>
 								</tr>
 							) : (
-								entries.map(e => (
-									<tr
-										key={e.id}
-										className={`transition hover:scale-[1.01] hover:shadow-lg bg-white border-b border-gray-200 last:border-b-0 group ${
-											selected.includes(e.id)
-												? 'bg-blue-50'
-												: ''
-										}`}
-									>
-										<td className='px-4 py-3'>
-											<input
-												type='checkbox'
-												checked={selected.includes(
-													e.id,
+								entries.map(e => {
+									let durationMs = 0;
+									let status = '-';
+									if (e.swapIn && e.swapOut) {
+										durationMs =
+											e.swapOut.toDate().getTime() -
+											e.swapIn.toDate().getTime();
+										if (durationMs >= WORK_DURATION_MS) {
+											status = 'Covered';
+										} else {
+											status = 'Ended Early';
+										}
+									}
+									return (
+										<tr
+											key={e.id}
+											className={`transition hover:scale-[1.01] hover:shadow-lg bg-white border-b border-gray-200 last:border-b-0 group ${
+												selected.includes(e.id)
+													? 'bg-blue-50'
+													: ''
+											}`}
+										>
+											<td className='px-2 py-2 sm:px-4 sm:py-3'>
+												<input
+													type='checkbox'
+													checked={selected.includes(
+														e.id,
+													)}
+													onChange={ev => {
+														if (ev.target.checked)
+															setSelected(
+																prev => [
+																	...prev,
+																	e.id,
+																],
+															);
+														else
+															setSelected(prev =>
+																prev.filter(
+																	id =>
+																		id !==
+																		e.id,
+																),
+															);
+													}}
+													className='accent-blue-500 h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-blue-400'
+													aria-label='Select row'
+												/>
+											</td>
+											<td className='px-2 py-2 sm:px-4 sm:py-3 rounded-l-lg font-semibold text-gray-700 whitespace-nowrap'>
+												{e.swapIn &&
+													e.swapIn
+														.toDate()
+														.toLocaleDateString()}
+											</td>
+											<td className='px-2 py-2 sm:px-4 sm:py-3 font-mono text-blue-700 whitespace-nowrap'>
+												{e.swapIn &&
+													e.swapIn
+														.toDate()
+														.toLocaleTimeString()}
+											</td>
+											<td className='px-2 py-2 sm:px-4 sm:py-3 font-mono text-blue-700 whitespace-nowrap'>
+												{e.swapOut ? (
+													e.swapOut
+														.toDate()
+														.toLocaleTimeString()
+												) : (
+													<span className='text-gray-400'>
+														-
+													</span>
 												)}
-												onChange={ev => {
-													if (ev.target.checked)
-														setSelected(prev => [
-															...prev,
-															e.id,
-														]);
-													else
-														setSelected(prev =>
-															prev.filter(
-																id =>
-																	id !== e.id,
-															),
-														);
-												}}
-												className='accent-blue-500 h-4 w-4 rounded border-gray-300 focus:ring-2 focus:ring-blue-400'
-												aria-label='Select row'
-											/>
-										</td>
-										<td className='px-4 py-3 rounded-l-lg font-semibold text-gray-700 whitespace-nowrap'>
-											{e.swapIn &&
-												e.swapIn
-													.toDate()
-													.toLocaleDateString()}
-										</td>
-										<td className='px-4 py-3 font-mono text-blue-700 whitespace-nowrap'>
-											{e.swapIn &&
-												e.swapIn
-													.toDate()
-													.toLocaleTimeString()}
-										</td>
-										<td className='px-4 py-3 font-mono text-blue-700 whitespace-nowrap'>
-											{e.swapOut ? (
-												e.swapOut
-													.toDate()
-													.toLocaleTimeString()
-											) : (
-												<span className='text-gray-400'>
-													-
-												</span>
-											)}
-										</td>
-										<td className='px-4 py-3 font-mono text-green-700 whitespace-nowrap'>
-											{e.swapIn && e.swapOut
-												? formatDuration(
-														e.swapOut
-															.toDate()
-															.getTime() -
-															e.swapIn
-																.toDate()
-																.getTime(),
-												  )
-												: '-'}
-										</td>
-										<td className='px-4 py-3 rounded-r-lg text-right'>
-											<button
-												onClick={() =>
-													handleDelete(e.id)
-												}
-												className='inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded hover:bg-red-100 hover:text-red-800 transition group-hover:opacity-100 opacity-60 focus:outline-none focus:ring-2 focus:ring-red-300'
-												title='Delete entry'
+											</td>
+											<td className='px-2 py-2 sm:px-4 sm:py-3 font-mono text-green-700 whitespace-nowrap'>
+												{e.swapIn && e.swapOut
+													? formatDuration(durationMs)
+													: '-'}
+											</td>
+											<td
+												className={`px-2 py-2 sm:px-4 sm:py-3 font-semibold whitespace-nowrap ${
+													status === 'Covered'
+														? 'text-green-600'
+														: status ===
+														  'Ended Early'
+														? 'text-red-500'
+														: 'text-gray-400'
+												}`}
 											>
-												<svg
-													xmlns='http://www.w3.org/2000/svg'
-													className='h-4 w-4'
-													fill='none'
-													viewBox='0 0 24 24'
-													stroke='currentColor'
+												{status}
+											</td>
+											<td className='px-2 py-2 sm:px-4 sm:py-3 rounded-r-lg text-right'>
+												<button
+													onClick={() =>
+														handleDelete(e.id)
+													}
+													className='inline-flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded hover:bg-red-100 hover:text-red-800 transition group-hover:opacity-100 opacity-60 focus:outline-none focus:ring-2 focus:ring-red-300'
+													title='Delete entry'
 												>
-													<path
-														strokeLinecap='round'
-														strokeLinejoin='round'
-														strokeWidth={2}
-														d='M6 18L18 6M6 6l12 12'
-													/>
-												</svg>
-												Delete
-											</button>
-										</td>
-									</tr>
-								))
+													<svg
+														xmlns='http://www.w3.org/2000/svg'
+														className='h-4 w-4'
+														fill='none'
+														viewBox='0 0 24 24'
+														stroke='currentColor'
+													>
+														<path
+															strokeLinecap='round'
+															strokeLinejoin='round'
+															strokeWidth={2}
+															d='M6 18L18 6M6 6l12 12'
+														/>
+													</svg>
+													<span className='hidden xs:inline'>
+														Delete
+													</span>
+												</button>
+											</td>
+										</tr>
+									);
+								})
 							)}
 						</tbody>
 					</table>
 				</div>
-				<div className='mt-6 text-right text-lg font-semibold text-gray-700'>
+				<div className='mt-4 sm:mt-6 text-right text-base sm:text-lg font-semibold text-gray-700'>
 					Total:{' '}
 					<span className='text-blue-700'>
 						{formatDuration(total)}
@@ -308,7 +330,7 @@ export default function History() {
 					<div className='flex justify-end mt-2'>
 						<button
 							onClick={() => handleDelete(selected)}
-							className='inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 transition'
+							className='inline-flex items-center gap-2 px-3 py-2 text-xs sm:text-sm font-semibold text-white bg-red-600 rounded shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 transition'
 						>
 							<svg
 								xmlns='http://www.w3.org/2000/svg'
@@ -326,34 +348,6 @@ export default function History() {
 							</svg>
 							Delete Selected ({selected.length})
 						</button>
-					</div>
-				)}
-				{busTimes.length > 0 && (
-					<div className='mt-10'>
-						<h3 className='text-lg font-bold mb-2 text-gray-800'>
-							Bus Timings Lookup
-						</h3>
-						<table className='min-w-full border-separate border-spacing-y-0 shadow rounded-xl overflow-hidden bg-white'>
-							<thead>
-								<tr className='bg-gray-50 text-gray-700 text-xs uppercase tracking-wider'>
-									<th className='px-4 py-3 text-left rounded-tl-lg'>
-										Time
-									</th>
-								</tr>
-							</thead>
-							<tbody>
-								{busTimes.map(b => (
-									<tr
-										key={b.id}
-										className='transition hover:bg-blue-50 group'
-									>
-										<td className='px-4 py-3 font-mono text-blue-700 whitespace-nowrap'>
-											{b.time}
-										</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
 					</div>
 				)}
 			</div>

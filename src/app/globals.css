@@ -1,26 +1,135 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
+/* App Theme Variables */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+	--color-background: #f8fafc;
+	--color-background-dark: #181a20;
+	--color-card: #fff;
+	--color-card-dark: #23262f;
+	--color-border: #e5e7eb;
+	--color-border-dark: #23262f;
+	--color-primary-50: #eff6ff;
+	--color-primary-100: #dbeafe;
+	--color-primary-200: #bfdbfe;
+	--color-primary-300: #93c5fd;
+	--color-primary-400: #60a5fa;
+	--color-primary-600: #2563eb;
+	--color-primary-700: #1d4ed8;
+	--color-primary-800: #1e40af;
+	--color-primary-900: #1e293b;
+	--color-secondary: #f1f5f9;
+	--color-secondary-dark: #23262f;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--font-sans: var(--font-geist-sans);
+	--font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+	:root {
+		--background: #0a0a0a;
+		--foreground: #ededed;
+	}
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+	background: var(--background);
+	color: var(--foreground);
+	font-family: Arial, Helvetica, sans-serif;
+}
+
+.bg-background {
+	background-color: var(--color-background) !important;
+}
+.bg-background-dark {
+	background-color: var(--color-background-dark) !important;
+}
+.bg-card {
+	background-color: var(--color-card) !important;
+}
+.bg-card-dark {
+	background-color: var(--color-card-dark) !important;
+}
+.bg-secondary {
+	background-color: var(--color-secondary) !important;
+}
+.bg-secondary-dark {
+	background-color: var(--color-secondary-dark) !important;
+}
+.border-border {
+	border-color: var(--color-border) !important;
+}
+.border-border-dark {
+	border-color: var(--color-border-dark) !important;
+}
+.text-primary-50 {
+	color: var(--color-primary-50) !important;
+}
+.text-primary-100 {
+	color: var(--color-primary-100) !important;
+}
+.text-primary-200 {
+	color: var(--color-primary-200) !important;
+}
+.text-primary-300 {
+	color: var(--color-primary-300) !important;
+}
+.text-primary-400 {
+	color: var(--color-primary-400) !important;
+}
+.text-primary-600 {
+	color: var(--color-primary-600) !important;
+}
+.text-primary-700 {
+	color: var(--color-primary-700) !important;
+}
+.text-primary-800 {
+	color: var(--color-primary-800) !important;
+}
+.text-primary-900 {
+	color: var(--color-primary-900) !important;
+}
+.text-primary-100 {
+	color: var(--color-primary-100) !important;
+}
+.text-primary-900 {
+	color: var(--color-primary-900) !important;
+}
+
+/* Dark mode overrides */
+.dark .bg-background {
+	background-color: var(--color-background-dark) !important;
+}
+.dark .bg-card {
+	background-color: var(--color-card-dark) !important;
+}
+.dark .bg-secondary {
+	background-color: var(--color-secondary-dark) !important;
+}
+.dark .border-border {
+	border-color: var(--color-border-dark) !important;
+}
+.dark .text-primary-700 {
+	color: var(--color-primary-200) !important;
+}
+.dark .text-primary-900 {
+	color: var(--color-primary-100) !important;
+}
+.dark .text-primary-400 {
+	color: var(--color-primary-200) !important;
+}
+.dark .text-primary-600 {
+	color: var(--color-primary-400) !important;
+}
+
+/* Smooth transitions for theme */
+html,
+body,
+.bg-background,
+.bg-card,
+.bg-secondary {
+	transition: background-color 0.3s, color 0.3s;
 }
