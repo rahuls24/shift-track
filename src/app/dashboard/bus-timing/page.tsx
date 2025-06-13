@@ -4,7 +4,6 @@ import { db } from '../../../firebase';
 import {
 	collection,
 	doc,
-	getDocs,
 	setDoc,
 	updateDoc,
 	deleteDoc,
@@ -31,6 +30,7 @@ interface BusTime {
 export default function BusTiming() {
 	const [busTimes, setBusTimes] = useState<BusTime[]>([]);
 	const [loading, setLoading] = useState(true);
+	// eslint-disable-next-line
 	const [user, setUser] = useState<any>(null);
 	const [editId, setEditId] = useState<string | null>(null);
 	const [editValue, setEditValue] = useState('');
