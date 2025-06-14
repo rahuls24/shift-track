@@ -20,7 +20,6 @@ export function getFirebaseApp() {
 	return getApp();
 }
 
-console.log(' pant ----------------Firebase Auth initialized:', firebaseConfig);
 export const firebaseApp = getFirebaseApp();
 export const auth = getAuth(firebaseApp);
 
